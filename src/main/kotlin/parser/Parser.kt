@@ -1,3 +1,5 @@
+package parser
+
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 

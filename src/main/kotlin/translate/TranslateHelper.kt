@@ -1,10 +1,12 @@
+package translate
+
 import org.jsoup.Jsoup
 import org.openqa.selenium.By
 import org.openqa.selenium.Keys
 import org.openqa.selenium.WebDriver
 import org.openqa.selenium.WebElement
 import org.openqa.selenium.chrome.ChromeDriver
-
+import translate.type.Translator
 
 class TranslateHelper(private val translator: Translator = Translator.getDefault()) {
     private val driver: WebDriver = ChromeDriver()
@@ -28,13 +30,10 @@ class TranslateHelper(private val translator: Translator = Translator.getDefault
             .click()
     }
 
-    private fun setupFirstTranslation() = with(driver) {
-        get(translator.url)
-
-        findElement(By.xpath("//button[@id='srcLangButton']")).click()
-        findElement(By.xpath("//div[@data-value='zh']")).click()
-
-        input = findElement(By.xpath("//div[@id='fakeArea']"))
+    private fun setupFirstTranslation() {
+        driver.get(translator.url)
+        translator.firstSetUpSite(driver)
+        input = translator.getInput(driver)
     }
 
     fun translate(vararg translatableBlocks: String): String = with(driver) {
@@ -48,7 +47,7 @@ class TranslateHelper(private val translator: Translator = Translator.getDefault
                 input.sendKeys(s, Keys.ENTER)
 
                 if (isFirstTranslation)
-                    output = findElement(By.xpath("//pre[@id='translation']"))
+                    output = translator.getOutput(driver)
 
                 output.waitVisibility()
                 val outputCode = output.getAttribute("innerHTML")
@@ -74,13 +73,5 @@ class TranslateHelper(private val translator: Translator = Translator.getDefault
     private fun getTranslationText(html: String): String {
         val doc = Jsoup.parse(html)
         return doc.select("span").first()!!.text()
-    }
-
-    enum class Translator(val url: String) {
-        YANDEX("https://translate.yandex.ru/");
-        
-        companion object {
-            fun getDefault() = YANDEX
-        }
     }
 }
