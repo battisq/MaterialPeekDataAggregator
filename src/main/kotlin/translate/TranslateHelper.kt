@@ -7,6 +7,7 @@ import org.openqa.selenium.WebDriver
 import org.openqa.selenium.WebElement
 import org.openqa.selenium.chrome.ChromeDriver
 import translate.type.Translator
+import utils.KotlinUtils.log
 
 class TranslateHelper(private val translator: Translator = Translator.getDefault()) {
     private val driver: WebDriver = ChromeDriver()
@@ -32,30 +33,42 @@ class TranslateHelper(private val translator: Translator = Translator.getDefault
 
     private fun setupFirstTranslation() {
         driver.get(translator.url)
-        translator.firstSetUpSite(driver)
+        translator.forceFirstSetUpSite(driver)
         input = translator.getInput(driver)
     }
 
-    fun translate(vararg translatableBlocks: String): String = with(driver) {
+    private fun Translator.forceFirstSetUpSite(driver: WebDriver, count: Int = 1) {
+        try {
+            firstSetUpSite(driver)
+        } catch (ex: Exception) {
+            Thread.sleep(10000)
+            forceFirstSetUpSite(driver, count + 1)
+        }
+    }
+
+    fun translate(vararg translatableBlocks: String, separator: String = ""): String = with(driver) {
         if (isFirstTranslation) setupFirstTranslation()
 
+        val filteredBlocks = translatableBlocks.filter { block -> block.isNotBlank() }
         var translatedBlocks = ""
 
         runCatching {
-            translatedBlocks = translatableBlocks.fold(StringBuffer()) { acc, s ->
+            translatedBlocks = filteredBlocks.fold(StringBuffer(translatableBlocks.size)) { acc, block ->
                 input.clear()
-                input.sendKeys(s, Keys.ENTER)
 
-                if (isFirstTranslation)
-                    output = translator.getOutput(driver)
+                input.sendKeys(block, Keys.ENTER)
+                output = translator.getOutput(driver)
+                output.takeIf { it.isDisplayed }?.clear()
+                output.waitValidState(block)
 
-                output.waitVisibility()
                 val outputCode = output.getAttribute("innerHTML")
                 val translationText = getTranslationText(outputCode)
 
                 isFirstTranslation = false
+                output.clear()
 
                 acc.append(translationText)
+                    .append(separator)
             }.toString()
         }.onFailure {
             println(it.stackTrace)
@@ -64,9 +77,10 @@ class TranslateHelper(private val translator: Translator = Translator.getDefault
         return translatedBlocks
     }
 
-    private fun WebElement.waitVisibility() {
-        while (!isDisplayed) {
-            Thread.sleep(10)
+    private fun WebElement.waitValidState(block: String) {
+        while (!isDisplayed || block.isNotBlank() && text.isBlank()) {
+            Thread.sleep(100)
+            log("After sleep(100)")
         }
     }
 
