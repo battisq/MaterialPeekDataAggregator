@@ -1,4 +1,3 @@
-import kotlinx.coroutines.flow.MutableStateFlow
 import parser.Parser
 import parser.models.Book
 import parser.models.ChapterLink
@@ -6,6 +5,7 @@ import parser.models.Page
 import test_data.testTextArray
 import translate.AsyncTranslatorHelper.asyncTranslate
 import translate.TranslateHelper
+import utils.FileUtils
 import utils.FileUtils.BOOK_JSON_PATH
 import utils.FileUtils.CHAPTER_LIST_JSON_PATH
 import utils.FileUtils.JSON_FILE_PATH
@@ -13,6 +13,8 @@ import utils.FileUtils.PAGE_LINK_LIST_JSON_PATH
 import utils.FileUtils.PAGE_LIST_JSON_PATH
 import utils.FileUtils.PAGE_LIST_PART_OF_DATA_JSON_PATH
 import utils.FileUtils.TRANSLATED_PAGE_LIST_PART_OF_DATA_JSON_PATH
+import utils.FileUtils.LAST_PART_TRANSLATED_PAGE_LIST_PART_OF_DATA_JSON_PATH
+import utils.FileUtils.LastPart
 import utils.FileUtils.loadFromFile
 import utils.FileUtils.saveToFile
 import utils.JsonUtils.fromJsonList
@@ -21,11 +23,15 @@ import utils.KotlinUtils.log
 import java.io.File
 
 fun main() {
+   Parser.getBook()
+}
+
+fun translate() {
     runCatching {
         val allPage = File(PAGE_LIST_PART_OF_DATA_JSON_PATH)
             .readText()
             .fromJsonList<Page>()
-            .filterIndexed { index, _ -> index < 12 }
+            .filterIndexed { index, _ -> index < 500 }
 
         println("Count = ${allPage.size}")
         allPage.forEach {
@@ -40,6 +46,7 @@ fun main() {
             }
 
             saveToFile(res.toJsonString(), TRANSLATED_PAGE_LIST_PART_OF_DATA_JSON_PATH)
+            saveToFile(LastPart(res.last().header).toJsonString(), LAST_PART_TRANSLATED_PAGE_LIST_PART_OF_DATA_JSON_PATH)
         })
     }.onFailure {
         log(it.stackTraceToString())

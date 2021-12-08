@@ -30,7 +30,9 @@ object FileUtils {
 
     const val PAGE_LIST_PART_OF_DATA_JSON_PATH = "$PROJECT_DIR/$RESULT/$PART_OF_DATA/PageListJson.json"
     const val TRANSLATED_PAGE_LIST_PART_OF_DATA_JSON_PATH = "$PROJECT_DIR/$RESULT/$PART_OF_DATA/TranslatedPageListJson.json"
+    const val LAST_PART_TRANSLATED_PAGE_LIST_PART_OF_DATA_JSON_PATH = "$PROJECT_DIR/$RESULT/$PART_OF_DATA/VersionTranslatedPageListJson.json"
 
+    class LastPart(val lastChapter: String)
 
     fun saveToFile(fileText: String, path: String) {
         val file = File(path)

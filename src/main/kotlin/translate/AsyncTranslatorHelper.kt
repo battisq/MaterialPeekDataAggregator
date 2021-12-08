@@ -46,8 +46,6 @@ object AsyncTranslatorHelper {
                 val page = pair.third
                 val header = translateHelper.translate(page.header)
 
-                log(pair.third.text)
-
                 val text = translateHelper.translate(
                     separator = "\n\n",
                     translatableBlocks = (page.text

@@ -80,7 +80,7 @@ class TranslateHelper(private val translator: Translator = Translator.getDefault
     private fun WebElement.waitValidState(block: String) {
         while (!isDisplayed || block.isNotBlank() && text.isBlank()) {
             Thread.sleep(100)
-            log("After sleep(100)")
+//            log("After sleep(100)")
         }
     }
 

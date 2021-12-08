@@ -18,7 +18,7 @@ object Parser {
     private const val BASE_URL = "https://sj.uukanshu.com/"
 
     fun getBook(): Book {
-        val chaptersRange = (1..6009).toArray()
+//        val chaptersRange = (1..6009).toArray()
 
         val site = Jsoup.connect("https://sj.uukanshu.com/book.aspx?id=439").get()
         log("connect")
@@ -34,7 +34,7 @@ object Parser {
                 page.getChaptersFromPage()
             }
             .also { log("chapterAllLink.flatMap") }
-            .filter { el -> el.name.containsAny(*chaptersRange) }
+//            .filter { el -> !el.name.containsAny(*chaptersRange) }
 
         log("chapterAllLink")
 
@@ -123,6 +123,12 @@ object Parser {
             val linkId = a.attr("name")
             val name = a.text()
 
+
+            /**
+             * linkHref - link of chapter
+             * linkId - id of the chapter which is contained in the link
+             * name - name of chapter
+             */
             val chapterLink = ChapterLink(
                 BASE_URL + linkHref,
                 linkId,
