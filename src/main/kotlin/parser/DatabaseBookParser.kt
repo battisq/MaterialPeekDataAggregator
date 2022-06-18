@@ -1,13 +1,17 @@
 package parser
 
+import io.reactivex.rxjava3.core.Flowable
+import io.reactivex.rxjava3.schedulers.Schedulers
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.select.Elements
+import parser.entity.Chapter
 import parser.entity.ChapterMatch
-import parser.models.Book
+import parser.entity.PageMatch
+import parser.entity.Book
 import parser.models.ChapterLink
 import parser.models.Page
-import parser.models.PageLink
+import parser.entity.PageLink
 import utils.JsoupUtils.selectXpathOrNull
 import utils.KotlinUtils.log
 import java.util.*
@@ -21,33 +25,89 @@ object DatabaseBookParser {
         log("connect")
         val bookName = site.getBookName()
         val bookPreviewLink = "https://img.uukanshu.com/fengmian/2012/10/634865275395707500.jpg"
-        log("bookName")
+        log("After bookName & bookPreviewLink")
 
         val pageLinkList = site.getPageLinkList()
-        log("pageLinkList")
-        val chapterMatchList = ArrayList<ChapterMatch>(pageLinkList.size)
-        val chapterAllLink = pageLinkList
-            .flatMap { pageLink ->
-                val page = Jsoup.connect(pageLink.link).get()
-                page.getChaptersFromPage()
+        log("load pageLinkList; size = ${pageLinkList.size}")
+
+        val chapterList = ArrayList<Chapter>(7000)
+        val pageMatchList = ArrayList<PageMatch>(7000)
+
+        Flowable.fromIterable(pageLinkList)
+            .parallel(pageLinkList.size)
+            .runOn(Schedulers.computation())
+            .concatMap { Flowable.just(it) }
+            .map { pageLink ->
+                (pageLink.ordinal to pageLink.parsePage()).also {
+                    log("Parsed ${pageLink.ordinal}")
+                }
             }
-            .also { log("chapterAllLink.flatMap") }
+            .sequential()
+            .blockingIterable().let { pageLink ->
+                pageLink.sortedBy { it.first }
+                    .map { it.second }
+                    .forEach { pageData ->
+                        chapterList.addAll(pageData.first)
+                        pageMatchList.addAll(pageData.second)
+                    }
+            }
 
-        log("chapterAllLink")
+//        pageLinkList.forEach { pageLink ->
+//            val pageData = pageLink.parsePage()
+//            chapterList.addAll(pageData.first)
+//            pageMatchList.addAll(pageData.second)
+//        }
 
-        val pageList = chapterAllLink.mapIndexed { index, chapter ->
-            val page = Jsoup.connect(chapter.link).get()
-            page.getPageObject()
-                .also { log("chapterAllLink[$index]") }
-        }
+        val chapterMatchList = chapterList.getChapterMatchList()
 
         log("pageList")
 
         return Book(
             bookName,
+            bookPreviewLink,
             pageLinkList,
-            chapterAllLink,
-            pageList
+            pageMatchList,
+            chapterList,
+            chapterMatchList
+        )
+    }
+
+    private fun PageLink.parsePage(): Pair<List<Chapter>, List<PageMatch>> {
+        val pageSite = Jsoup.connect(link).get()
+        val chapterLinkList = pageSite.getChapterLinkListFromPage()
+        log("Parsed chapterLinkList in page[$ordinal]; count = ${chapterLinkList.size}")
+
+        val chapterList = ArrayList<Chapter>(1000)
+        val pageMatchList = ArrayList<PageMatch>(1000)
+
+        chapterLinkList.forEach { chapterLink ->
+            val chapterSite = Jsoup.connect(chapterLink.link).get()
+            val page = chapterSite.getPageObject()
+            log("Parsed page ${page.header}")
+
+            Chapter(
+                chapterLink.id.toInt(),
+                chapterLink.link,
+                page.header,
+                page.text
+            ).let(chapterList::add)
+
+            PageMatch(
+                chapterLink.id.toInt(),
+                link
+            ).let(pageMatchList::add)
+        }
+
+        log("Parsed all chapters in page[$ordinal]")
+
+        return chapterList to pageMatchList
+    }
+
+    private fun List<Chapter>.getChapterMatchList() = mapIndexed { index, chapter ->
+        ChapterMatch(
+            chapter.id,
+            takeIf { index > 0 }?.get(index - 1)?.link,
+            takeIf { index < lastIndex }?.get(index + 1)?.link
         )
     }
 
@@ -107,7 +167,7 @@ object DatabaseBookParser {
         return pageListWithoutFirst.apply { addFirst(firstPage) }
     }
 
-    private fun Document.getChaptersFromPage(): List<ChapterLink> {
+    private fun Document.getChapterLinkListFromPage(): List<ChapterLink> {
         val chapterList = select("div.ml-list")
             .select("ul[id=chapterList]")
             .select("li")

@@ -1,3 +1,6 @@
+import parser.DatabaseBookParser
+import parser.DatabaseBookUtils
+import parser.DatabaseBookUtils.saveBook
 import parser.Parser
 import parser.models.Book
 import parser.models.ChapterLink
@@ -23,7 +26,7 @@ import utils.KotlinUtils.log
 import java.io.File
 
 fun main() {
-   Parser.getBook()
+   DatabaseBookParser.getBook().saveBook()
 }
 
 fun translate() {
